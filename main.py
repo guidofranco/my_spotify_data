@@ -5,12 +5,16 @@ from spotify_connection import get_connection
 from utils import *
 
 import json
-
 from datetime import datetime, date, timedelta
 
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 
+from prefect import task, Flow
+
+import pandas as pd
+
+@task
 def get_played_songs(sp, start_date):
     today = datetime(
             date.today().year,
@@ -53,15 +57,29 @@ def get_played_songs(sp, start_date):
 
     return full_songs
 
+@task
+def save_data(data):
+    pd.DataFrame(data).to_csv("outputs/played_tracks.csv",
+                            index=None)
+
 def pipeline_plays():
     start_date = date.today() - timedelta(weeks=4)
     start_date = datetime.combine(start_date, datetime.min.time())
 
     sp = get_connection()
+
     all_tracks = get_played_songs(sp, start_date)
     full_tracks = get_song_features(all_tracks, sp)
     return full_tracks
 
-tracks = pipeline_plays()
-for track in tracks:
-    print(json.dumps(track))
+with Flow("Spotify-pipeline") as flow:
+    start_date = date.today() - timedelta(weeks=4)
+    start_date = datetime.combine(start_date, datetime.min.time())
+
+    sp = get_connection()
+
+    all_tracks = get_played_songs(sp, start_date)
+    full_tracks = get_song_features(all_tracks, sp)
+    save_data(full_tracks)
+
+flow.run()

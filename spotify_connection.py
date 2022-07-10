@@ -5,6 +5,9 @@ import config as cfg
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 
+from prefect import task
+
+#@task
 def get_connection():
     spotify = cfg.spotify
     auth = SpotifyOAuth(
